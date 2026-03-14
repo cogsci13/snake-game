@@ -126,6 +126,8 @@
       return path; // 12 positions
     })();
 
+    let audioCtx = null;
+    let musicTimeout = null;
     let decoFrame = 0;
     let decoLoopId = null;
 
@@ -169,6 +171,7 @@
         loopId: null,
         rafId: null,
         flashing: false,
+        muted: false,
         resetCount: 0,
       };
     }
@@ -600,10 +603,11 @@
     // 7. Input handler
     document.addEventListener('keydown', (e) => {
       if (state.screen === 'start' && DIRS[e.key]) {
-        e.preventDefault();
-        startGame();
+      e.preventDefault();
+      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      startGame();
         return;
-      }
+    }
       if (state.screen !== 'play' || state.flashing) return;
       if (!DIRS[e.key]) return;
       e.preventDefault();
