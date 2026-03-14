@@ -170,8 +170,86 @@
     }
 
     function drawBackground() {
-      ctx.fillStyle = STAGES[state.stageIdx].bg;
+      const stage = STAGES[state.stageIdx];
+      ctx.fillStyle = stage.bg;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
+      if (stage.borderStyle === 'leaf')  drawLeafBorder();
+      if (stage.borderStyle === 'wave')  drawWaveBorder();
+      if (stage.borderStyle === 'stars') drawStarsBorder();
+    }
+
+    function drawLeafBorder() {
+      ctx.save();
+      ctx.fillStyle = '#2d6a4f';
+      for (let x = 0; x < COLS; x += 2) {
+        drawLeaf(x * CELL + CELL / 2, 8);
+        drawLeaf(x * CELL + CELL / 2, canvas.height - 8);
+      }
+      for (let y = 0; y < ROWS; y += 2) {
+        drawLeaf(8, y * CELL + CELL / 2);
+        drawLeaf(canvas.width - 8, y * CELL + CELL / 2);
+      }
+      ctx.restore();
+    }
+
+    function drawLeaf(x, y) {
+      ctx.beginPath();
+      ctx.ellipse(x, y, 10, 5, Math.PI / 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawWaveBorder() {
+      ctx.save();
+      ctx.strokeStyle = '#48cae4';
+      ctx.lineWidth = 3;
+      ctx.setLineDash([8, 6]);
+      ctx.beginPath();
+      for (let x = 0; x <= canvas.width; x += 12) {
+        const y = 10 + Math.sin((x / canvas.width) * Math.PI * 4) * 4;
+        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.beginPath();
+      for (let x = 0; x <= canvas.width; x += 12) {
+        const y = canvas.height - 10 + Math.sin((x / canvas.width) * Math.PI * 4) * 4;
+        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.restore();
+    }
+
+    function drawStarsBorder() {
+      ctx.save();
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      const positions = [
+        {x:20,y:20},{x:60,y:15},{x:110,y:25},{x:170,y:10},{x:240,y:20},
+        {x:300,y:15},{x:360,y:22},{x:420,y:12},{x:470,y:20},
+        {x:20,y:465},{x:80,y:470},{x:150,y:460},{x:220,y:468},
+        {x:290,y:462},{x:350,y:470},{x:410,y:460},{x:460,y:468},
+        {x:10,y:60},{x:15,y:130},{x:8,y:200},{x:14,y:270},{x:10,y:340},{x:16,y:410},
+        {x:470,y:60},{x:465,y:140},{x:472,y:210},{x:468,y:280},{x:474,y:350},{x:470,y:420},
+      ];
+      positions.forEach(({ x, y }) => {
+        ctx.beginPath();
+        ctx.arc(x, y, 2, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      ctx.restore();
+    }
+
+    function roundRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
     }
 
     function drawSnake() {
@@ -179,24 +257,99 @@
       state.snake.forEach((seg, i) => {
         const isHead = i === 0;
         const isTail = i === state.snake.length - 1;
-        const size = isTail ? Math.round(CELL * 0.7) : CELL - 6;
+        // CELL-6 = 18px in a 24px cell → 6px gap between segments (intentional)
+        const size = isTail ? Math.round(CELL * 0.70) : CELL - 6;
         const offset = (CELL - size) / 2;
-        ctx.fillStyle = isHead ? lighten(stage.snake, 20) : stage.snake;
-        ctx.fillRect(seg.x * CELL + offset, seg.y * CELL + offset, size, size);
+        const px = seg.x * CELL + offset;
+        const py = seg.y * CELL + offset;
+        const r = Math.round(size * 0.35);
+
+        ctx.fillStyle = isHead ? lighten(stage.snake, 25) : stage.snake;
+        roundRect(px, py, size, size, r);
+        ctx.fill();
+
+        if (isHead) drawSnakeEyes(px, py, size);
       });
+    }
+
+    function drawSnakeEyes(px, py, size) {
+      ctx.fillStyle = '#fff';
+      const d = state.dir;
+      let e1, e2;
+      if (d.x === 1) {
+        e1 = { x: px + size - 7, y: py + 4 };
+        e2 = { x: px + size - 7, y: py + size - 7 };
+      } else if (d.x === -1) {
+        e1 = { x: px + 4, y: py + 4 };
+        e2 = { x: px + 4, y: py + size - 7 };
+      } else if (d.y === -1) {
+        e1 = { x: px + 4,        y: py + 4 };
+        e2 = { x: px + size - 7, y: py + 4 };
+      } else {
+        e1 = { x: px + 4,        y: py + size - 7 };
+        e2 = { x: px + size - 7, y: py + size - 7 };
+      }
+      ctx.beginPath(); ctx.arc(e1.x, e1.y, 3, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(e2.x, e2.y, 3, 0, Math.PI * 2); ctx.fill();
     }
 
     function drawFood() {
       const stage = STAGES[state.stageIdx];
       const cx = state.food.x * CELL + CELL / 2;
       const cy = state.food.y * CELL + CELL / 2;
+      ctx.save();
       ctx.shadowBlur = 10;
       ctx.shadowColor = stage.food;
       ctx.fillStyle = stage.food;
+      if (state.stageIdx === 0) drawApple(cx, cy);
+      else if (state.stageIdx === 1) drawFish(cx, cy);
+      else drawStar(cx, cy);
+      ctx.restore();
+    }
+
+    function drawApple(cx, cy) {
       ctx.beginPath();
-      ctx.arc(cx, cy, 9, 0, Math.PI * 2);
+      ctx.arc(cx, cy + 1, 9, 0, Math.PI * 2);
       ctx.fill();
       ctx.shadowBlur = 0;
+      ctx.strokeStyle = '#4caf50';
+      ctx.lineWidth = 2;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 8);
+      ctx.lineTo(cx, cy - 13);
+      ctx.stroke();
+    }
+
+    function drawFish(cx, cy) {
+      ctx.beginPath();
+      ctx.ellipse(cx + 2, cy, 10, 6, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(cx - 8, cy);
+      ctx.lineTo(cx - 16, cy - 6);
+      ctx.lineTo(cx - 16, cy + 6);
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#333';
+      ctx.beginPath();
+      ctx.arc(cx + 7, cy - 1, 2, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    function drawStar(cx, cy) {
+      const outer = 10, inner = 5, points = 5;
+      ctx.beginPath();
+      for (let i = 0; i < points * 2; i++) {
+        const r = i % 2 === 0 ? outer : inner;
+        const angle = (i * Math.PI) / points - Math.PI / 2;
+        i === 0
+          ? ctx.moveTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle))
+          : ctx.lineTo(cx + r * Math.cos(angle), cy + r * Math.sin(angle));
+      }
+      ctx.closePath();
+      ctx.fill();
     }
 
     function render() {
