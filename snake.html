@@ -114,6 +114,21 @@
       ArrowLeft: 'ArrowRight', ArrowRight: 'ArrowLeft',
     };
 
+    // Decorative 4×4 cell loop path (12 cells, counterclockwise)
+    const DECO_LOOP = (() => {
+      const sx = Math.round((COLS - 4) / 2); // column 8
+      const sy = Math.round(60 / CELL);      // row 2
+      const path = [];
+      for (let x = sx; x < sx + 4; x++)      path.push({ x, y: sy });       // top L→R
+      for (let y = sy + 1; y < sy + 4; y++)  path.push({ x: sx + 3, y });   // right T→B
+      for (let x = sx + 2; x >= sx; x--)    path.push({ x, y: sy + 3 });   // bottom R→L
+      for (let y = sy + 2; y > sy; y--)     path.push({ x: sx, y });       // left B→T
+      return path; // 12 positions
+    })();
+
+    let decoFrame = 0;
+    let decoLoopId = null;
+
     // 2. State management
     let state = {};
 
@@ -526,20 +541,56 @@
       }, 2000);
     }
 
+    const CONFETTI_COLORS = ['#ff6b6b','#ffd166','#06d6a0','#118ab2','#c77dff','#ff9f43','#48dbfb'];
+
+    function initConfetti() {
+      return Array.from({ length: 80 }, () => ({
+        x: Math.random() * canvas.width,
+        y: -8 - Math.random() * canvas.height,
+        speed: 2 + Math.random() * 2,
+        drift: (Math.random() - 0.5) * 2,
+        color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+      }));
+    }
+
     function showVictory() {
-      // Placeholder — replaced in Task 10
       state.screen = 'victory';
-      render();
-      ctx.fillStyle = 'rgba(0,0,0,0.72)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.textAlign = 'center';
-      ctx.shadowBlur = 0;
-      ctx.fillStyle = '#ffd700';
-      ctx.font = '52px "Fredoka One", cursive';
-      ctx.fillText('You Win! 🏆', canvas.width / 2, canvas.height / 2 - 40);
-      ctx.fillStyle = '#fff';
-      ctx.font = '28px "Fredoka One", cursive';
-      ctx.fillText(`Final Score: ${state.score}`, canvas.width / 2, canvas.height / 2 + 20);
+      stopLoop();
+      stopDecoLoop();
+      const particles = initConfetti();
+
+      function victoryLoop() {
+        if (state.screen !== 'victory') return;
+        render();
+        ctx.fillStyle = 'rgba(0,0,0,0.60)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        particles.forEach(p => {
+          ctx.fillStyle = p.color;
+          ctx.fillRect(p.x, p.y, 8, 8);
+          p.y += p.speed;
+          p.x += p.drift;
+          if (p.y > canvas.height || p.x < -8 || p.x > canvas.width + 8) {
+            p.y = -8;
+            p.x = Math.random() * canvas.width;
+          }
+        });
+
+        ctx.textAlign = 'center';
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = '#ffd700';
+        ctx.font = '52px "Fredoka One", cursive';
+        ctx.fillText('You Win! 🏆', canvas.width / 2, canvas.height / 2 - 50);
+        ctx.fillStyle = '#fff';
+        ctx.font = '28px "Fredoka One", cursive';
+        ctx.fillText(`Final Score: ${state.score}`, canvas.width / 2, canvas.height / 2 + 10);
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.font = '20px "Fredoka One", cursive';
+        ctx.fillText('Amazing! 🎊', canvas.width / 2, canvas.height / 2 + 48);
+
+        state.rafId = requestAnimationFrame(victoryLoop);
+      }
+      state.rafId = requestAnimationFrame(victoryLoop);
       showButton('playAgainBtn', 'Play Again ✨', () => fullReset());
     }
 
@@ -558,13 +609,53 @@
       state.currentDirKey = e.key;
     });
 
-    // 8. Stub for deco loop (needed by startGame)
-    function stopDecoLoop() {
-      // Implemented in Task 9 — stub here so startGame doesn't crash
+    // 8. Deco loop and start screen
+    function drawStartScreen() {
+      ctx.fillStyle = STAGES[0].bg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      drawLeafBorder();
+
+      // Decorative 5-segment snake — parens required for correct modulo
+      for (let i = 0; i < 5; i++) {
+        const pos = DECO_LOOP[(decoFrame + i) % DECO_LOOP.length];
+        const size = CELL - 6;
+        const off = (CELL - size) / 2;
+        ctx.fillStyle = i === 0 ? lighten(STAGES[0].snake, 25) : STAGES[0].snake;
+        roundRect(pos.x * CELL + off, pos.y * CELL + off, size, size, Math.round(size * 0.35));
+        ctx.fill();
+      }
+
+      ctx.textAlign = 'center';
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#ffd166';
+      ctx.font = 'bold 56px "Fredoka One", cursive';
+      ctx.fillText('🐍 Snake!', canvas.width / 2, 280);
+      ctx.fillStyle = '#6bcb77';
+      ctx.font = '28px "Fredoka One", cursive';
+      ctx.fillText('🌿 Jungle', canvas.width / 2, 322);
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.font = '20px "Fredoka One", cursive';
+      ctx.fillText('Press any arrow key to start', canvas.width / 2, 372);
     }
 
-    // 9. Initial render call (temporary — replaced in Task 9)
-    render();
+    function startDecoLoop() {
+      decoFrame = 0;
+      decoLoopId = setInterval(() => {
+        decoFrame = (decoFrame + 1) % DECO_LOOP.length;
+        if (state.screen === 'start') drawStartScreen();
+        else stopDecoLoop();
+      }, 200);
+    }
+
+    function stopDecoLoop() {
+      if (decoLoopId) { clearInterval(decoLoopId); decoLoopId = null; }
+    }
+
+    // 9. Initial setup — show start screen
+    document.getElementById('hud').style.visibility = 'hidden';
+    document.getElementById('food-counter').style.visibility = 'hidden';
+    drawStartScreen();
+    startDecoLoop();
   </script>
 </body>
 </html>
