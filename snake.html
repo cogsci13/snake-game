@@ -451,11 +451,12 @@
       if (newHead.x < 0 || newHead.x >= COLS || newHead.y < 0 || newHead.y >= ROWS) {
         handleCollision(); return;
       }
-      if (state.snake.slice(0, -1).some(s => s.x === newHead.x && s.y === newHead.y)) {
+      const ateFood = newHead.x === state.food.x && newHead.y === state.food.y;
+      const bodyToCheck = ateFood ? state.snake : state.snake.slice(0, -1);
+      if (bodyToCheck.some(s => s.x === newHead.x && s.y === newHead.y)) {
         handleCollision(); return;
       }
 
-      const ateFood = newHead.x === state.food.x && newHead.y === state.food.y;
       state.snake.unshift(newHead);
       if (!ateFood) {
         state.snake.pop();
@@ -526,7 +527,9 @@
       ctx.font = '18px "Fredoka One", cursive';
       ctx.fillText('Get ready...', canvas.width / 2, canvas.height / 2 + 60);
 
+      const snapshotReset = state.resetCount;
       setTimeout(() => {
+        if (state.resetCount !== snapshotReset) return;
         if (state.stageIdx >= STAGES.length - 1) return;
         state.stageIdx += 1;
         state.foodEaten = 0;
