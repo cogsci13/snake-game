@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>🐍 Snake!</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #111;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      font-family: 'Fredoka One', 'Comic Sans MS', cursive;
+      color: #fff;
+      user-select: none;
+    }
+    #game-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+    #hud {
+      width: 480px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 10px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 12px;
+      font-size: 18px;
+    }
+    #hud-score { flex: 1; text-align: left; }
+    #hud-stage { flex: 1; text-align: center; }
+    #hud-lives { flex: 1; text-align: right; }
+    #food-counter {
+      font-size: 16px;
+      opacity: 0.85;
+      letter-spacing: 1px;
+    }
+    #canvas-container {
+      position: relative;
+      display: inline-block;
+    }
+    #canvas {
+      display: block;
+      border-radius: 8px;
+    }
+    #overlay-btn-container {
+      position: absolute;
+      bottom: -60px;
+      left: 50%;
+      transform: translateX(-50%);
+      white-space: nowrap;
+    }
+    .overlay-btn {
+      padding: 12px 32px;
+      font-family: 'Fredoka One', 'Comic Sans MS', cursive;
+      font-size: 22px;
+      border: none;
+      border-radius: 50px;
+      background: #ffd166;
+      color: #333;
+      cursor: pointer;
+      transition: transform 0.1s;
+    }
+    .overlay-btn:hover { transform: scale(1.07); }
+    .overlay-btn:active { transform: scale(0.96); }
+  </style>
+</head>
+<body>
+  <div id="game-wrapper">
+    <div id="hud">
+      <span id="hud-score">Score: 0</span>
+      <span id="hud-stage">🌿 Jungle</span>
+      <span id="hud-lives">❤️❤️❤️</span>
+    </div>
+    <div id="food-counter">🍎 0 / 10</div>
+    <div id="canvas-container">
+      <canvas id="canvas" width="480" height="480"></canvas>
+      <div id="overlay-btn-container"></div>
+    </div>
+  </div>
+  <script>
+    /* ALL JS GOES HERE — assembled below */
+
+    // 1. Constants and stage config
+    const CELL = 24;
+    const COLS = 20;
+    const ROWS = 20;
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const STAGES = [
+      { name: '🌿 Jungle', bg: '#1a472a', snake: '#6bcb77', food: '#ff4d4d', foodEmoji: '🍎', speed: 200, borderStyle: 'leaf' },
+      { name: '🌊 Ocean',  bg: '#0d3b6e', snake: '#00b4d8', food: '#ffd166', foodEmoji: '🐟', speed: 150, borderStyle: 'wave' },
+      { name: '🚀 Space',  bg: '#0d0221', snake: '#c77dff', food: '#ffd700', foodEmoji: '⭐', speed: 100, borderStyle: 'stars' },
+    ];
+
+    const FOOD_PER_STAGE = 10;
+    const DIRS = {
+      ArrowUp:    { x: 0, y: -1 },
+      ArrowDown:  { x: 0, y:  1 },
+      ArrowLeft:  { x: -1, y: 0 },
+      ArrowRight: { x:  1, y: 0 },
+    };
+    const OPPOSITE = {
+      ArrowUp: 'ArrowDown', ArrowDown: 'ArrowUp',
+      ArrowLeft: 'ArrowRight', ArrowRight: 'ArrowLeft',
+    };
+
+    // 2. State management
+    let state = {};
+
+    function createSnake() {
+      return [
+        { x: 10, y: 10 },
+        { x:  9, y: 10 },
+        { x:  8, y: 10 },
+      ];
+    }
+
+    function spawnFood(snake) {
+      const occupied = new Set(snake.map(s => `${s.x},${s.y}`));
+      let cell, attempts = 0;
+      do {
+        cell = {
+          x: Math.floor(Math.random() * COLS),
+          y: Math.floor(Math.random() * ROWS),
+        };
+        attempts++;
+      } while (occupied.has(`${cell.x},${cell.y}`) && attempts < 400);
+      return cell;
+    }
+
+    function initState() {
+      const snake = createSnake();
+      state = {
+        screen: 'start',
+        stageIdx: 0,
+        score: 0,
+        lives: 3,
+        snake,
+        dir: { x: 1, y: 0 },
+        nextDir: { x: 1, y: 0 },
+        currentDirKey: 'ArrowRight',
+        food: spawnFood(snake),
+        foodEaten: 0,
+        loopId: null,
+        rafId: null,
+        flashing: false,
+      };
+    }
+
+    initState();
+
+    // 3. Rendering helpers
+    function lighten(hex, amount) {
+      const num = parseInt(hex.slice(1), 16);
+      const r = Math.min(255, (num >> 16) + amount);
+      const g = Math.min(255, ((num >> 8) & 0xff) + amount);
+      const b = Math.min(255, (num & 0xff) + amount);
+      return `rgb(${r},${g},${b})`;
+    }
+
+    function drawBackground() {
+      ctx.fillStyle = STAGES[state.stageIdx].bg;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+    }
+
+    function drawSnake() {
+      const stage = STAGES[state.stageIdx];
+      state.snake.forEach((seg, i) => {
+        const isHead = i === 0;
+        const isTail = i === state.snake.length - 1;
+        const size = isTail ? Math.round(CELL * 0.7) : CELL - 6;
+        const offset = (CELL - size) / 2;
+        ctx.fillStyle = isHead ? lighten(stage.snake, 20) : stage.snake;
+        ctx.fillRect(seg.x * CELL + offset, seg.y * CELL + offset, size, size);
+      });
+    }
+
+    function drawFood() {
+      const stage = STAGES[state.stageIdx];
+      const cx = state.food.x * CELL + CELL / 2;
+      const cy = state.food.y * CELL + CELL / 2;
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = stage.food;
+      ctx.fillStyle = stage.food;
+      ctx.beginPath();
+      ctx.arc(cx, cy, 9, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    }
+
+    function render() {
+      drawBackground();
+      drawSnake();
+      drawFood();
+    }
+
+    // 4. HUD and game flow
+    function updateHUD() {
+      const stage = STAGES[state.stageIdx];
+      document.getElementById('hud-score').textContent = `Score: ${state.score}`;
+      document.getElementById('hud-stage').textContent = stage.name;
+      document.getElementById('hud-lives').textContent = '❤️'.repeat(state.lives);
+      document.getElementById('food-counter').textContent =
+        `${stage.foodEmoji} ${state.foodEaten} / ${FOOD_PER_STAGE}`;
+    }
+
+    function startLoop() {
+      state.loopId = setInterval(tick, STAGES[state.stageIdx].speed);
+    }
+
+    function stopLoop() {
+      if (state.loopId) { clearInterval(state.loopId); state.loopId = null; }
+    }
+
+    function startGame() {
+      state.screen = 'play';
+      stopDecoLoop();
+      document.getElementById('hud').style.visibility = 'visible';
+      document.getElementById('food-counter').style.visibility = 'visible';
+      updateHUD();
+      startLoop();
+    }
+
+    function clearOverlayBtn() {
+      const container = document.getElementById('overlay-btn-container');
+      while (container.firstChild) container.removeChild(container.firstChild);
+    }
+
+    function showButton(id, label, onClick) {
+      clearOverlayBtn();
+      const btn = document.createElement('button');
+      btn.id = id;
+      btn.className = 'overlay-btn';
+      btn.textContent = label;
+      btn.addEventListener('click', () => { clearOverlayBtn(); onClick(); });
+      document.getElementById('overlay-btn-container').appendChild(btn);
+    }
+
+    function fullReset() {
+      if (state.rafId) { cancelAnimationFrame(state.rafId); state.rafId = null; }
+      stopLoop();
+      clearOverlayBtn();
+      initState();              // sets screen:'start' — overridden on next line
+      state.screen = 'play';   // skip start screen after first play
+      document.getElementById('hud').style.visibility = 'visible';
+      document.getElementById('food-counter').style.visibility = 'visible';
+      updateHUD();
+      render();
+      startLoop();
+    }
+
+    // 5. Game tick and food logic
+    function handleFoodEaten() {
+      state.score += (state.stageIdx + 1) * 10;
+      state.foodEaten += 1;
+      updateHUD();
+      if (state.foodEaten >= FOOD_PER_STAGE) {
+        stopLoop();
+        if (state.stageIdx === STAGES.length - 1) showVictory();
+        else showStageClear();
+      } else {
+        state.food = spawnFood(state.snake);
+      }
+    }
+
+    function tick() {
+      state.dir = state.nextDir;
+      const head = state.snake[0];
+      const newHead = { x: head.x + state.dir.x, y: head.y + state.dir.y };
+
+      if (newHead.x < 0 || newHead.x >= COLS || newHead.y < 0 || newHead.y >= ROWS) {
+        handleCollision(); return;
+      }
+      if (state.snake.some(s => s.x === newHead.x && s.y === newHead.y)) {
+        handleCollision(); return;
+      }
+
+      const ateFood = newHead.x === state.food.x && newHead.y === state.food.y;
+      state.snake.unshift(newHead);
+      if (!ateFood) {
+        state.snake.pop();
+      } else {
+        handleFoodEaten();
+      }
+      render();
+    }
+
+    // 6. Collision and overlay screens
+    function handleCollision() {
+      stopLoop();
+      state.lives -= 1;
+      state.flashing = true;
+
+      ctx.fillStyle = 'rgba(255,0,0,0.45)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      setTimeout(() => {
+        if (state.screen !== 'play') return;
+        state.flashing = false;
+        if (state.lives <= 0) {
+          showGameOver();
+        } else {
+          state.snake = createSnake();
+          state.dir = { x: 1, y: 0 };
+          state.nextDir = { x: 1, y: 0 };
+          state.currentDirKey = 'ArrowRight';
+          updateHUD();
+          render();
+          startLoop();
+        }
+      }, 500);
+    }
+
+    function showGameOver() {
+      state.screen = 'gameover';
+      render();
+      ctx.fillStyle = 'rgba(0,0,0,0.72)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.textAlign = 'center';
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#ff6b6b';
+      ctx.font = '48px "Fredoka One", cursive';
+      ctx.fillText('Game Over 💀', canvas.width / 2, canvas.height / 2 - 40);
+      ctx.fillStyle = '#fff';
+      ctx.font = '28px "Fredoka One", cursive';
+      ctx.fillText(`Final Score: ${state.score}`, canvas.width / 2, canvas.height / 2 + 20);
+      showButton('tryAgainBtn', 'Try Again 🔄', () => fullReset());
+    }
+
+    function showStageClear() {
+      state.screen = 'stageclear';
+      stopLoop();
+      render();
+      ctx.fillStyle = 'rgba(0,0,0,0.65)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.textAlign = 'center';
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#ffd166';
+      ctx.font = '42px "Fredoka One", cursive';
+      ctx.fillText('Stage Complete! 🎉', canvas.width / 2, canvas.height / 2 - 30);
+      ctx.fillStyle = '#fff';
+      ctx.font = '26px "Fredoka One", cursive';
+      ctx.fillText(`Score: ${state.score}`, canvas.width / 2, canvas.height / 2 + 20);
+      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.font = '18px "Fredoka One", cursive';
+      ctx.fillText('Get ready...', canvas.width / 2, canvas.height / 2 + 60);
+
+      setTimeout(() => {
+        if (state.stageIdx >= STAGES.length - 1) return;
+        state.stageIdx += 1;
+        state.foodEaten = 0;
+        state.snake = createSnake();
+        state.dir = { x: 1, y: 0 };
+        state.nextDir = { x: 1, y: 0 };
+        state.currentDirKey = 'ArrowRight';
+        state.food = spawnFood(state.snake);
+        state.screen = 'play';
+        updateHUD();
+        startLoop();
+      }, 2000);
+    }
+
+    function showVictory() {
+      // Placeholder — replaced in Task 10
+      state.screen = 'victory';
+      render();
+      ctx.fillStyle = 'rgba(0,0,0,0.72)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.textAlign = 'center';
+      ctx.shadowBlur = 0;
+      ctx.fillStyle = '#ffd700';
+      ctx.font = '52px "Fredoka One", cursive';
+      ctx.fillText('You Win! 🏆', canvas.width / 2, canvas.height / 2 - 40);
+      ctx.fillStyle = '#fff';
+      ctx.font = '28px "Fredoka One", cursive';
+      ctx.fillText(`Final Score: ${state.score}`, canvas.width / 2, canvas.height / 2 + 20);
+      showButton('playAgainBtn', 'Play Again ✨', () => fullReset());
+    }
+
+    // 7. Input handler
+    document.addEventListener('keydown', (e) => {
+      if (state.screen === 'start' && DIRS[e.key]) {
+        e.preventDefault();
+        startGame();
+        return;
+      }
+      if (state.screen !== 'play' || state.flashing) return;
+      if (!DIRS[e.key]) return;
+      e.preventDefault();
+      if (e.key === OPPOSITE[state.currentDirKey]) return;
+      state.nextDir = DIRS[e.key];
+      state.currentDirKey = e.key;
+    });
+
+    // 8. Stub for deco loop (needed by startGame)
+    function stopDecoLoop() {
+      // Implemented in Task 9 — stub here so startGame doesn't crash
+    }
+
+    // 9. Initial render call (temporary — replaced in Task 9)
+    render();
+  </script>
+</body>
+</html>
