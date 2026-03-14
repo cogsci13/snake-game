@@ -154,6 +154,7 @@
         loopId: null,
         rafId: null,
         flashing: false,
+        resetCount: 0,
       };
     }
 
@@ -251,6 +252,7 @@
       stopLoop();
       clearOverlayBtn();
       initState();              // sets screen:'start' — overridden on next line
+      state.resetCount = (state.resetCount || 0) + 1;
       state.screen = 'play';   // skip start screen after first play
       document.getElementById('hud').style.visibility = 'visible';
       document.getElementById('food-counter').style.visibility = 'visible';
@@ -281,7 +283,7 @@
       if (newHead.x < 0 || newHead.x >= COLS || newHead.y < 0 || newHead.y >= ROWS) {
         handleCollision(); return;
       }
-      if (state.snake.some(s => s.x === newHead.x && s.y === newHead.y)) {
+      if (state.snake.slice(0, -1).some(s => s.x === newHead.x && s.y === newHead.y)) {
         handleCollision(); return;
       }
 
@@ -300,12 +302,13 @@
       stopLoop();
       state.lives -= 1;
       state.flashing = true;
+      const snapshotReset = state.resetCount;
 
       ctx.fillStyle = 'rgba(255,0,0,0.45)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       setTimeout(() => {
-        if (state.screen !== 'play') return;
+        if (state.resetCount !== snapshotReset) return;
         state.flashing = false;
         if (state.lives <= 0) {
           showGameOver();
