@@ -401,6 +401,7 @@
       document.getElementById('food-counter').style.visibility = 'visible';
       updateHUD();
       startLoop();
+      startMusic(state.stageIdx);
     }
 
     function clearOverlayBtn() {
@@ -421,6 +422,7 @@
     function fullReset() {
       if (state.rafId) { cancelAnimationFrame(state.rafId); state.rafId = null; }
       stopLoop();
+      stopMusic();
       clearOverlayBtn();
       initState();              // sets screen:'start' — overridden on next line
       state.resetCount = (state.resetCount || 0) + 1;
@@ -430,6 +432,7 @@
       updateHUD();
       render();
       startLoop();
+      startMusic(0);
     }
 
     // 5. Game tick and food logic
@@ -439,8 +442,12 @@
       updateHUD();
       if (state.foodEaten >= FOOD_PER_STAGE) {
         stopLoop();
-        if (state.stageIdx === STAGES.length - 1) showVictory();
-        else showStageClear();
+        if (state.stageIdx === STAGES.length - 1) {
+          showVictory();
+        } else {
+          stopMusic();  // ← ADD: stop current stage's music immediately
+          showStageClear();
+        }
       } else {
         state.food = spawnFood(state.snake);
       }
@@ -497,6 +504,7 @@
     }
 
     function showGameOver() {
+      stopMusic();
       state.screen = 'gameover';
       render();
       ctx.fillStyle = 'rgba(0,0,0,0.72)';
@@ -531,7 +539,7 @@
       ctx.fillText('Get ready...', canvas.width / 2, canvas.height / 2 + 60);
 
       const snapshotReset = state.resetCount;
-      setTimeout(() => {
+      musicTimeout = setTimeout(() => {
         if (state.resetCount !== snapshotReset) return;
         if (state.stageIdx >= STAGES.length - 1) return;
         state.stageIdx += 1;
@@ -544,6 +552,7 @@
         state.screen = 'play';
         updateHUD();
         startLoop();
+        startMusic(state.stageIdx);  // ← ADD: start new stage theme
       }, 2000);
     }
 
@@ -656,6 +665,48 @@
 
     function stopDecoLoop() {
       if (decoLoopId) { clearInterval(decoLoopId); decoLoopId = null; }
+    }
+
+    // 10. Audio system
+    function stopMusic() {
+      clearTimeout(musicTimeout);
+      musicTimeout = null;
+    }
+
+    function startMusic(stageIdx) {
+      if (!audioCtx || state.muted) return;
+      stopMusic(); // cancel any pending loop or stage-clear timer
+      const melodies = [
+        // Jungle: square wave, 160 BPM (~0.375s/beat → 0.18s notes)
+        { type: 'square',   notes: [[523,0.18],[659,0.18],[784,0.18],[659,0.18],[523,0.18],[392,0.18],[659,0.18],[523,0.36]] },
+        // Ocean: sine wave, 100 BPM (~0.6s/beat → 0.3s notes)
+        { type: 'sine',     notes: [[262,0.3],[330,0.3],[392,0.3],[440,0.3],[392,0.3],[330,0.6]] },
+        // Space: sawtooth wave, 130 BPM (~0.46s/beat → 0.23s notes)
+        { type: 'sawtooth', notes: [[220,0.23],[330,0.23],[440,0.23],[523,0.23],[659,0.23],[440,0.23],[330,0.23],[220,0.46]] },
+      ];
+      const melody = melodies[stageIdx];
+
+      function scheduleMelody() {
+        if (!audioCtx || state.muted) return;
+        let t = audioCtx.currentTime + 0.05; // small scheduling lookahead
+        let total = 0;
+        melody.notes.forEach(([freq, dur]) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = melody.type;
+          osc.frequency.value = freq;
+          gain.gain.setValueAtTime(0.08, t);
+          gain.gain.linearRampToValueAtTime(0, t + dur - 0.01);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(t);
+          osc.stop(t + dur);
+          t += dur;
+          total += dur;
+        });
+        musicTimeout = setTimeout(scheduleMelody, total * 1000);
+      }
+      scheduleMelody();
     }
 
     // 9. Initial setup — show start screen
