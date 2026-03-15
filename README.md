@@ -13,10 +13,15 @@ A kid-friendly snake game with three themed stages, background music, and sound 
 - **Mute toggle** (🔊/🔇) in the HUD
 - **Victory screen** with confetti animation after completing all three stages
 
+## Prerequisites
+
+- A modern web browser with JavaScript enabled (Chrome 66+, Firefox 61+, Safari 14+, Edge 79+)
+- A keyboard (arrow keys required — no touch/mobile support)
+
 ## Getting Started
 
 1. Download `snake.html`
-2. Open it in any modern web browser (Chrome, Firefox, Safari, Edge)
+2. Open it in your browser
 3. Press any arrow key to start
 
 **Controls:** Arrow keys only. No installation, no internet connection required.
