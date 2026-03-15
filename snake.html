@@ -437,6 +437,7 @@
 
     // 5. Game tick and food logic
     function handleFoodEaten() {
+      playEatSound(state.stageIdx);
       state.score += (state.stageIdx + 1) * 10;
       state.foodEaten += 1;
       updateHUD();
@@ -445,7 +446,8 @@
         if (state.stageIdx === STAGES.length - 1) {
           showVictory();
         } else {
-          stopMusic();  // ← ADD: stop current stage's music immediately
+          stopMusic();
+          playSound('stageClear');
           showStageClear();
         }
       } else {
@@ -480,6 +482,7 @@
     function handleCollision() {
       stopLoop();
       state.lives -= 1;
+      playSound('death');
       state.flashing = true;
       const snapshotReset = state.resetCount;
 
@@ -552,7 +555,7 @@
         state.screen = 'play';
         updateHUD();
         startLoop();
-        startMusic(state.stageIdx);  // ← ADD: start new stage theme
+        startMusic(state.stageIdx);
       }, 2000);
     }
 
@@ -569,6 +572,8 @@
     }
 
     function showVictory() {
+      stopMusic();
+      playSound('victory');
       state.screen = 'victory';
       stopLoop();
       stopDecoLoop();
@@ -707,6 +712,80 @@
         musicTimeout = setTimeout(scheduleMelody, total * 1000);
       }
       scheduleMelody();
+    }
+
+    function playEatSound(stageIdx) {
+      if (!audioCtx || state.muted) return;
+      const configs = [
+        { type: 'square',   startF: 400, endF: 800,  dur: 0.12 }, // Jungle: bright chirp
+        { type: 'sine',     startF: 600, endF: 200,  dur: 0.15 }, // Ocean: bubble pop
+        { type: 'sawtooth', startF: 300, endF: 1200, dur: 0.08 }, // Space: laser zap
+      ];
+      const { type, startF, endF, dur } = configs[stageIdx];
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(startF, audioCtx.currentTime);
+      osc.frequency.linearRampToValueAtTime(endF, audioCtx.currentTime + dur);
+      gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
+      gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + dur);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + dur);
+    }
+
+    function playSound(name) {
+      if (!audioCtx || state.muted) return;
+
+      if (name === 'death') {
+        // Low descending wah: 400->100 Hz over 0.4s
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(400, audioCtx.currentTime);
+        osc.frequency.linearRampToValueAtTime(100, audioCtx.currentTime + 0.4);
+        gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+        gain.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.4);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + 0.4);
+      }
+
+      if (name === 'stageClear') {
+        // 3-note ascending fanfare: C5->E5->G5, each 0.15s
+        [[523, 0], [659, 0.15], [784, 0.30]].forEach(([freq, offset]) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'square';
+          osc.frequency.value = freq;
+          const t = audioCtx.currentTime + offset;
+          gain.gain.setValueAtTime(0.12, t);
+          gain.gain.linearRampToValueAtTime(0, t + 0.13);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(t);
+          osc.stop(t + 0.15);
+        });
+      }
+
+      if (name === 'victory') {
+        // 5-note arpeggio: C5->E5->G5->C6->E6, each 0.12s
+        [[523, 0], [659, 0.12], [784, 0.24], [1047, 0.36], [1319, 0.48]].forEach(([freq, offset]) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = 'square';
+          osc.frequency.value = freq;
+          const t = audioCtx.currentTime + offset;
+          gain.gain.setValueAtTime(0.12, t);
+          gain.gain.linearRampToValueAtTime(0, t + 0.10);
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(t);
+          osc.stop(t + 0.12);
+        });
+      }
     }
 
     // 9. Initial setup — show start screen
