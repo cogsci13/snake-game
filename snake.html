@@ -525,6 +525,7 @@
       drawBackground();
       drawSnake();
       drawFood();
+      if (state.dog) drawDog(state.dog.x, state.dog.y);
     }
 
     // 4. HUD and game flow
@@ -603,7 +604,7 @@
           showStageClear();
         }
       } else {
-        state.food = spawnFood(state.snake);
+        state.food = spawnFood(state.snake, state.dog);
       }
     }
 
@@ -663,6 +664,14 @@
           state.dir = { x: 1, y: 0 };
           state.nextDir = { x: 1, y: 0 };
           state.currentDirKey = 'ArrowRight';
+          // If dog overlaps new snake spawn, re-place it
+          const stg = STAGES[state.stageIdx];
+          if (stg.hasDog && state.dog) {
+            const snakeSet = new Set(state.snake.map(s => `${s.x},${s.y}`));
+            if (snakeSet.has(`${state.dog.x},${state.dog.y}`)) {
+              state.dog = spawnDog(state.snake, state.food);
+            }
+          }
           updateHUD();
           render();
           startLoop();
@@ -715,7 +724,8 @@
         state.dir = { x: 1, y: 0 };
         state.nextDir = { x: 1, y: 0 };
         state.currentDirKey = 'ArrowRight';
-        state.food = spawnFood(state.snake);
+        state.food = spawnFood(state.snake, state.dog);
+        state.dog = STAGES[state.stageIdx].hasDog ? spawnDog(state.snake, state.food) : null;
         state.screen = 'play';
         updateHUD();
         startLoop();
