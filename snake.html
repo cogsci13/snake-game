@@ -109,9 +109,11 @@
     const ctx = canvas.getContext('2d');
 
     const STAGES = [
-      { name: '🌿 Jungle', bg: '#1a472a', snake: '#6bcb77', food: '#ff4d4d', foodEmoji: '🍎', speed: 200, borderStyle: 'leaf' },
-      { name: '🌊 Ocean',  bg: '#0d3b6e', snake: '#00b4d8', food: '#ffd166', foodEmoji: '🐟', speed: 150, borderStyle: 'wave' },
-      { name: '🚀 Space',  bg: '#0d0221', snake: '#c77dff', food: '#ffd700', foodEmoji: '⭐', speed: 100, borderStyle: 'stars' },
+      { name: '🌿 Jungle', bg: '#1a472a', snake: '#6bcb77', food: '#ff4d4d', foodEmoji: '🍎', speed: 200, borderStyle: 'leaf',  hasDog: false },
+      { name: '🌊 Ocean',  bg: '#0d3b6e', snake: '#00b4d8', food: '#ffd166', foodEmoji: '🐟', speed: 150, borderStyle: 'wave',  hasDog: false },
+      { name: '🚀 Space',  bg: '#0d0221', snake: '#c77dff', food: '#ffd700', foodEmoji: '⭐', speed: 100, borderStyle: 'stars', hasDog: false },
+      { name: '🍪 Cookie Land', bg: '#3d1a00', snake: '#ff9a3c', food: '#ff6eb4', foodEmoji: '🍬', speed: 100, borderStyle: 'cookies', hasDog: true },
+      { name: '🧸 Doll Land',   bg: '#2d1b4e', snake: '#ffb3d9', food: '#cd853f', foodEmoji: '🧸', speed: 100, borderStyle: 'hearts',  hasDog: true },
     ];
 
     const FOOD_PER_STAGE = 10;
@@ -178,13 +180,15 @@
         dir: { x: 1, y: 0 },
         nextDir: { x: 1, y: 0 },
         currentDirKey: 'ArrowRight',
-        food: spawnFood(snake),
+        food: spawnFood(snake, null),
         foodEaten: 0,
         loopId: null,
         rafId: null,
         flashing: false,
         muted: false,
         resetCount: 0,
+        dog: null,
+        tickCount: 0,
       };
     }
 
