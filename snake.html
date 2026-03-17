@@ -240,9 +240,11 @@
       const stage = STAGES[state.stageIdx];
       ctx.fillStyle = stage.bg;
       ctx.fillRect(0, 0, canvas.width, canvas.height);
-      if (stage.borderStyle === 'leaf')  drawLeafBorder();
-      if (stage.borderStyle === 'wave')  drawWaveBorder();
-      if (stage.borderStyle === 'stars') drawStarsBorder();
+      if (stage.borderStyle === 'leaf')    drawLeafBorder();
+      if (stage.borderStyle === 'wave')    drawWaveBorder();
+      if (stage.borderStyle === 'stars')   drawStarsBorder();
+      if (stage.borderStyle === 'cookies') drawCookieBorder();
+      if (stage.borderStyle === 'hearts')  drawHeartsBorder();
     }
 
     function drawLeafBorder() {
@@ -302,6 +304,45 @@
         ctx.arc(x, y, 2, 0, Math.PI * 2);
         ctx.fill();
       });
+      ctx.restore();
+    }
+
+    function drawCookieBorder() {
+      ctx.save();
+      ctx.fillStyle = '#a0522d';
+      for (let x = 0; x < canvas.width; x += 24) {
+        ctx.beginPath(); ctx.arc(x + 12, 10, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(x + 12, 470, 5, 0, Math.PI * 2); ctx.fill();
+      }
+      for (let y = 24; y < canvas.height - 24; y += 24) {
+        ctx.beginPath(); ctx.arc(10, y + 12, 5, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(470, y + 12, 5, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function drawHeartsBorder() {
+      ctx.save();
+      ctx.fillStyle = '#ff69b4';
+
+      function drawHeart(hx, hy) {
+        ctx.beginPath();
+        ctx.moveTo(hx, hy + 3);
+        ctx.bezierCurveTo(hx, hy,     hx - 6, hy,     hx - 6, hy + 3);
+        ctx.bezierCurveTo(hx - 6, hy + 7, hx, hy + 10, hx, hy + 12);
+        ctx.bezierCurveTo(hx, hy + 10, hx + 6, hy + 7, hx + 6, hy + 3);
+        ctx.bezierCurveTo(hx + 6, hy,     hx, hy,     hx, hy + 3);
+        ctx.fill();
+      }
+
+      for (let x = 0; x < canvas.width; x += 28) {
+        drawHeart(x + 8, 3);
+        drawHeart(x + 8, 462);
+      }
+      for (let y = 28; y < canvas.height - 28; y += 28) {
+        drawHeart(3, y);
+        drawHeart(462, y);
+      }
       ctx.restore();
     }
 
