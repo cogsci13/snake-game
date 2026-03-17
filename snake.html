@@ -611,7 +611,6 @@
     function tick() {
       state.tickCount++;
       const stage = STAGES[state.stageIdx];
-      if (stage.hasDog && state.dog && state.tickCount % 3 === 0) moveDog();
 
       state.dir = state.nextDir;
       const head = state.snake[0];
@@ -640,6 +639,10 @@
       } else {
         handleFoodEaten();
       }
+
+      // Dog moves AFTER snake — player sees collision based on last rendered dog position
+      if (stage.hasDog && state.dog && state.tickCount % 3 === 0) moveDog();
+
       render();
     }
 
@@ -724,7 +727,8 @@
         state.dir = { x: 1, y: 0 };
         state.nextDir = { x: 1, y: 0 };
         state.currentDirKey = 'ArrowRight';
-        state.food = spawnFood(state.snake, state.dog);
+        state.dog = null; // clear old dog before spawning food for new stage
+        state.food = spawnFood(state.snake, null);
         state.dog = STAGES[state.stageIdx].hasDog ? spawnDog(state.snake, state.food) : null;
         state.screen = 'play';
         updateHUD();
