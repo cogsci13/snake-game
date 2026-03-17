@@ -667,6 +667,7 @@
           state.dir = { x: 1, y: 0 };
           state.nextDir = { x: 1, y: 0 };
           state.currentDirKey = 'ArrowRight';
+          state.tickCount = 0;
           // If dog overlaps new snake spawn, re-place it
           const stg = STAGES[state.stageIdx];
           if (stg.hasDog && state.dog) {
@@ -727,6 +728,7 @@
         state.dir = { x: 1, y: 0 };
         state.nextDir = { x: 1, y: 0 };
         state.currentDirKey = 'ArrowRight';
+        state.tickCount = 0;
         state.dog = null; // clear old dog before spawning food for new stage
         state.food = spawnFood(state.snake, null);
         state.dog = STAGES[state.stageIdx].hasDog ? spawnDog(state.snake, state.food) : null;
