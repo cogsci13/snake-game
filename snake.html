@@ -156,8 +156,9 @@
       ];
     }
 
-    function spawnFood(snake) {
+    function spawnFood(snake, dog) {
       const occupied = new Set(snake.map(s => `${s.x},${s.y}`));
+      if (dog) occupied.add(`${dog.x},${dog.y}`);
       let cell, attempts = 0;
       do {
         cell = {
@@ -167,6 +168,38 @@
         attempts++;
       } while (occupied.has(`${cell.x},${cell.y}`) && attempts < 400);
       return cell;
+    }
+
+    function spawnDog(snake, food) {
+      const occupied = new Set(snake.map(s => `${s.x},${s.y}`));
+      occupied.add(`${food.x},${food.y}`);
+      let cell, attempts = 0;
+      do {
+        cell = {
+          x: Math.floor(Math.random() * COLS),
+          y: Math.floor(Math.random() * ROWS),
+        };
+        attempts++;
+      } while (occupied.has(`${cell.x},${cell.y}`) && attempts < 400);
+      return cell;
+    }
+
+    function moveDog() {
+      const dirs = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
+      // Fisher-Yates shuffle
+      for (let i = dirs.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
+      }
+      for (const d of dirs) {
+        const nx = state.dog.x + d.x;
+        const ny = state.dog.y + d.y;
+        if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS) {
+          state.dog = { x: nx, y: ny };
+          return;
+        }
+      }
+      // All directions hit wall — stay in place (can't happen on 20×20 grid)
     }
 
     function initState() {
