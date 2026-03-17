@@ -608,6 +608,10 @@
     }
 
     function tick() {
+      state.tickCount++;
+      const stage = STAGES[state.stageIdx];
+      if (stage.hasDog && state.dog && state.tickCount % 3 === 0) moveDog();
+
       state.dir = state.nextDir;
       const head = state.snake[0];
       const newHead = { x: head.x + state.dir.x, y: head.y + state.dir.y };
@@ -615,7 +619,15 @@
       if (newHead.x < 0 || newHead.x >= COLS || newHead.y < 0 || newHead.y >= ROWS) {
         handleCollision(); return;
       }
+
+      // Food check comes BEFORE dog check: if dog walks onto a food cell, the snake can
+      // still eat the food. Dog collision is only lethal if there's no food there.
       const ateFood = newHead.x === state.food.x && newHead.y === state.food.y;
+
+      if (!ateFood && stage.hasDog && state.dog && newHead.x === state.dog.x && newHead.y === state.dog.y) {
+        handleCollision(); return;
+      }
+
       const bodyToCheck = ateFood ? state.snake : state.snake.slice(0, -1);
       if (bodyToCheck.some(s => s.x === newHead.x && s.y === newHead.y)) {
         handleCollision(); return;
