@@ -862,6 +862,10 @@
         { type: 'sine',     notes: [[262,0.3],[330,0.3],[392,0.3],[440,0.3],[392,0.3],[330,0.6]] },
         // Space: sawtooth wave, 130 BPM (~0.46s/beat → 0.23s notes)
         { type: 'sawtooth', notes: [[220,0.23],[330,0.23],[440,0.23],[523,0.23],[659,0.23],[440,0.23],[330,0.23],[220,0.46]] },
+        // Cookie Land: triangle wave, upbeat ~130 BPM
+        { type: 'triangle', notes: [[523,0.23],[659,0.23],[784,0.23],[880,0.23],[784,0.23],[659,0.23],[523,0.23],[523,0.46]] },
+        // Doll Land: sine wave, gentle ~90 BPM
+        { type: 'sine',     notes: [[392,0.33],[440,0.33],[494,0.33],[523,0.33],[494,0.33],[440,0.66]] },
       ];
       const melody = melodies[stageIdx];
 
@@ -894,6 +898,8 @@
         { type: 'square',   startF: 400, endF: 800,  dur: 0.12 }, // Jungle: bright chirp
         { type: 'sine',     startF: 600, endF: 200,  dur: 0.15 }, // Ocean: bubble pop
         { type: 'sawtooth', startF: 300, endF: 1200, dur: 0.08 }, // Space: laser zap
+        { type: 'sine',     startF: 500, endF: 900,  dur: 0.10 }, // Cookie: sweet pop
+        { type: 'triangle', startF: 800, endF: 600,  dur: 0.18 }, // Doll: soft chime
       ];
       const { type, startF, endF, dur } = configs[stageIdx];
       const osc = audioCtx.createOscillator();
