@@ -812,11 +812,11 @@
     // 7. Input handler
     document.addEventListener('keydown', (e) => {
       if (state.screen === 'start' && DIRS[e.key]) {
-      e.preventDefault();
-      if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      startGame();
+        e.preventDefault();
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        startGame();
         return;
-    }
+      }
       if (state.screen !== 'play' || state.flashing) return;
       if (!DIRS[e.key]) return;
       e.preventDefault();
@@ -824,6 +824,50 @@
       state.nextDir = DIRS[e.key];
       state.currentDirKey = e.key;
     });
+
+    // Touch / swipe support for mobile and iPad
+    let touchStartX = 0, touchStartY = 0;
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+    }, { passive: false });
+
+    canvas.addEventListener('touchend', (e) => {
+      e.preventDefault();
+      const dx = e.changedTouches[0].clientX - touchStartX;
+      const dy = e.changedTouches[0].clientY - touchStartY;
+      const absDx = Math.abs(dx), absDy = Math.abs(dy);
+
+      // Tap (no meaningful swipe) on start screen → start game
+      if (absDx < 10 && absDy < 10) {
+        if (state.screen === 'start') {
+          if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          startGame();
+        }
+        return;
+      }
+
+      // Require minimum swipe distance
+      if (absDx < 30 && absDy < 30) return;
+
+      let swipeKey;
+      if (absDx > absDy) {
+        swipeKey = dx > 0 ? 'ArrowRight' : 'ArrowLeft';
+      } else {
+        swipeKey = dy > 0 ? 'ArrowDown' : 'ArrowUp';
+      }
+
+      if (state.screen === 'start') {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        startGame();
+        return;
+      }
+      if (state.screen !== 'play' || state.flashing) return;
+      if (swipeKey === OPPOSITE[state.currentDirKey]) return;
+      state.nextDir = DIRS[swipeKey];
+      state.currentDirKey = swipeKey;
+    }, { passive: false });
 
     // 8. Deco loop and start screen
     function drawStartScreen() {
@@ -851,7 +895,7 @@
       ctx.fillText('🌿 Jungle', canvas.width / 2, 322);
       ctx.fillStyle = 'rgba(255,255,255,0.85)';
       ctx.font = '20px "Fredoka One", cursive';
-      ctx.fillText('Press any arrow key to start', canvas.width / 2, 372);
+      ctx.fillText('Arrow keys or swipe to start', canvas.width / 2, 372);
     }
 
     function startDecoLoop() {
