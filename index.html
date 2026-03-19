@@ -186,7 +186,19 @@
 
     function moveDog() {
       const dirs = [{ x: 0, y: -1 }, { x: 0, y: 1 }, { x: -1, y: 0 }, { x: 1, y: 0 }];
-      // Fisher-Yates shuffle
+
+      // 80% chance: continue in current direction (creates wide patrol paths)
+      // 20% chance: pick a new random direction
+      if (Math.random() < 0.8) {
+        const nx = state.dog.x + state.dogDir.x;
+        const ny = state.dog.y + state.dogDir.y;
+        if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS) {
+          state.dog = { x: nx, y: ny };
+          return;
+        }
+      }
+
+      // Change direction: Fisher-Yates shuffle, pick first valid direction
       for (let i = dirs.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [dirs[i], dirs[j]] = [dirs[j], dirs[i]];
@@ -195,11 +207,11 @@
         const nx = state.dog.x + d.x;
         const ny = state.dog.y + d.y;
         if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS) {
+          state.dogDir = d;
           state.dog = { x: nx, y: ny };
           return;
         }
       }
-      // All directions hit wall — stay in place (can't happen on 20×20 grid)
     }
 
     function initState() {
@@ -221,6 +233,7 @@
         muted: false,
         resetCount: 0,
         dog: null,
+        dogDir: { x: 1, y: 0 },
         tickCount: 0,
       };
     }
@@ -668,6 +681,7 @@
           state.nextDir = { x: 1, y: 0 };
           state.currentDirKey = 'ArrowRight';
           state.tickCount = 0;
+          state.dogDir = { x: 1, y: 0 };
           // If dog overlaps new snake spawn, re-place it
           const stg = STAGES[state.stageIdx];
           if (stg.hasDog && state.dog) {
@@ -729,6 +743,7 @@
         state.nextDir = { x: 1, y: 0 };
         state.currentDirKey = 'ArrowRight';
         state.tickCount = 0;
+        state.dogDir = { x: 1, y: 0 };
         state.dog = null; // clear old dog before spawning food for new stage
         state.food = spawnFood(state.snake, null);
         state.dog = STAGES[state.stageIdx].hasDog ? spawnDog(state.snake, state.food) : null;
